@@ -79,7 +79,7 @@ static NSString *const MessageHanderName = @"ReactNative";
     if (![[self class] dynamicallyLoadWebKitIfAvailable]) {
       return;
     };
-
+      
     WKWebViewConfiguration *wkWebViewConfig = [WKWebViewConfiguration new];
     wkWebViewConfig.userContentController = [WKUserContentController new];
     [wkWebViewConfig.userContentController addScriptMessageHandler: self name: MessageHanderName];
@@ -386,6 +386,28 @@ static NSString *const MessageHanderName = @"ReactNative";
   return window;
 }
 
+- (void)webView:(WKWebView *)webView decidePolicyForNavigationResponse:(WKNavigationResponse *)navigationResponse decisionHandler:(void (^)(WKNavigationResponsePolicy))decisionHandler{
+    NSHTTPURLResponse *response = (NSHTTPURLResponse *)navigationResponse.response;
+    NSArray *cookies =[NSHTTPCookie cookiesWithResponseHeaderFields:[response allHeaderFields] forURL:response.URL];
+    NSHTTPCookieStorage *cookieStorage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
+    [cookieStorage setCookieAcceptPolicy:NSHTTPCookieAcceptPolicyAlways];
+    for (NSHTTPCookie *cookie in cookies) {
+        [[NSHTTPCookieStorage sharedHTTPCookieStorage] setCookie:cookie];
+    }
+    
+    decisionHandler(WKNavigationResponsePolicyAllow);
+}
+
+- (void) webView:(WKWebView *)webView
+    createWebViewWithConfiguration:(nonnull WKWebViewConfiguration *)configuration forNavigationAction:(nonnull WKNavigationAction *)navigationAction windowFeatures:(nonnull WKWindowFeatures *)windowFeatures
+{
+    if (navigationAction.targetFrame.isMainFrame == false){
+        [webView loadRequest:navigationAction.request];
+
+    }
+}
+
+
 
 /**
  * Decides whether to allow or cancel a navigation.
@@ -395,6 +417,11 @@ static NSString *const MessageHanderName = @"ReactNative";
   decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction
                   decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler
 {
+  if ( [navigationAction.request.URL.absoluteString rangeOfString : @"myapp://closewebview"].location != NSNotFound){
+      decisionHandler(WKNavigationResponsePolicyCancel);
+      return;
+  }
+    
   static NSDictionary<NSNumber *, NSString *> *navigationTypes;
   static dispatch_once_t onceToken;
 
@@ -441,6 +468,12 @@ static NSString *const MessageHanderName = @"ReactNative";
 
   // Allow all navigation by default
   decisionHandler(WKNavigationResponsePolicyAllow);
+}
+
+- (NSString *)documentsDirectoryPath{
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectoryPath = [paths objectAtIndex:0];
+    return documentsDirectoryPath;
 }
 
 /**
@@ -495,6 +528,8 @@ static NSString *const MessageHanderName = @"ReactNative";
 - (void)      webView:(WKWebView *)webView
   didFinishNavigation:(WKNavigation *)navigation
 {
+  [self evaluateJS:@"window.open = function(open) { return function (url, name, features) { window.location.href = url; return window;} ; } (window.open); true" thenCall:nil];
+
   if (_messagingEnabled) {
     #if RCT_DEV
 

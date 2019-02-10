@@ -194,6 +194,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 - (BOOL)webView:(__unused UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request
  navigationType:(UIWebViewNavigationType)navigationType
 {
+    
   BOOL isJSNavigation = [request.URL.scheme isEqualToString:RNCJSNavigationScheme];
 
   static NSDictionary<NSNumber *, NSString *> *navigationTypes;
@@ -257,6 +258,11 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
   return !isJSNavigation;
 }
 
+- (NSString *)documentsDirectoryPath {
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectoryPath = [paths objectAtIndex:0];
+    return documentsDirectoryPath;
+}
 - (void)webView:(__unused UIWebView *)webView didFailLoadWithError:(NSError *)error
 {
   if (_onLoadingError) {
@@ -306,6 +312,8 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
         "var messageQueue = [];"
         "var messagePending = false;"
+                        
+        
 
         "function processQueue() {"
           "if (!messageQueue.length || messagePending) return;"
